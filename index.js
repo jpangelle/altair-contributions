@@ -1,7 +1,6 @@
 require('dotenv').config({ path: '.env' });
 const axios = require('axios');
 const { MongoClient } = require('mongodb');
-const { BigNumber } = require('bignumber.js');
 
 const { MONGO_DB_URI } = process.env;
 
@@ -84,48 +83,3 @@ setInterval(async () => {
   console.log('writing timestamp to db');
   await timestampCollection.insertMany([{ timestamp }]);
 }, 1000 * 60 * 5);
-
-const getContributions = async () => {
-  await mongoDBClient.connect();
-
-  const database = mongoDBClient.db('altair-contributions');
-
-  const contributionCollection = database.collection('contributions');
-
-  const contributions = await contributionCollection
-    .find({})
-    .project({ _id: 0 })
-    .toArray();
-
-  const distinctContributions = contributions.reduce((acc, cur) => {
-    if (acc[cur.account]) {
-      acc[cur.account] = {
-        ...acc[cur.account],
-        amount: new BigNumber(acc[cur.account].amount)
-          .plus(cur.amount)
-          .toString(),
-        numberOfContributions: acc[cur.account].numberOfContributions + 1,
-      };
-    } else {
-      acc[cur.account] = {
-        account: cur.account,
-        amount: cur.amount,
-        numberOfContributions: 1,
-      };
-    }
-
-    return acc;
-  }, {});
-
-  const orderedContributions = Object.values(distinctContributions).map(
-    contribution => contribution,
-  );
-
-  orderedContributions.sort((a, b) =>
-    new BigNumber(b.amount).minus(new BigNumber(a.amount)),
-  );
-
-  return orderedContributions;
-};
-
-getContributions();
